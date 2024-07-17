@@ -7,7 +7,12 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
+#include <string>
+#include <sstream>
 
+int playerOnline = 0;
+bool start = 0;
+int ID_player = 1;
 const int PORT = 3008;
 const int BUFFER_SIZE = 1024;
 
@@ -16,6 +21,41 @@ void setNonBlocking(int sockfd) {
     if (ioctl(sockfd, FIONBIO, &nonBlocking) != 0) {
         perror("ioctl nonblocking faill");
         exit(EXIT_FAILURE);
+    }
+}
+
+std::vector<std::string> splitByNewline(const std::string& input) {
+    std::vector<std::string> result;
+    std::stringstream ss(input);
+    std::string item;
+
+    while (std::getline(ss, item, '\n')) {
+        result.push_back(item);
+    }
+
+    return result;
+}
+
+void handle_request(std::string msg, int sockfd) {
+    std::vector<std::string> cmd = splitByNewline(msg);
+    for (int e = 0; cmd.size() > e ; e++) {
+        if (cmd[e] == "READY") {
+            playerOnline++;
+            if (playerOnline == 2) start = 1;
+            std::cout << "send READY to" << sockfd << std::endl;
+
+        }
+        else if (cmd[e] == "ID") {
+            char idd[2];
+            idd[0] = '0' + ID_player;
+            idd[1] = '\n';
+            send(sockfd, idd, 2, 0);
+            std::cout << "ID clien for " << sockfd << std::endl;
+        } else if (cmd[e] == "MAP") {
+            send (sockfd, "2 20 20 5\n", 5, 0);
+            std::cout << "send MAP ofr : " << sockfd << std::endl;
+
+        }
     }
 }
 
@@ -94,7 +134,8 @@ int main() {
                 } else if (valread > 0) {
                     buffer[valread] = '\0';
                     std::cout << "Received message: " << buffer << std::endl;
-                    send(client_socket, buffer, valread, 0);
+                    handle_request(buffer, client_socket);
+                    // send(client_socket, buffer, valread, 0);
                     ++it;
                 }
             } else {
